@@ -1,14 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const db_utils = require('../db_utils/db')
+const db_utils = require('../db_utils/db_utils')
 
 /* GET home page. */
-router.get('/', function (req, res, next) {
+router.get('/', async function (req, res, next) {
+  const a = await db_utils.getAverageJourneyTime("LHR", "DXB");
+  console.log(a)
 
-  db_utils.createTableAndPopulate(`flighdata_B`);
-
-  res.render('index', { title: 'Express' });
+  res.render('index', { title: "Express" });
 });
+
+router.get('/fullcsv', async function (req, res, next) {
+  db_utils.createTableAndPopulate("flighdata_B")
+})
 
 module.exports = router;
 
