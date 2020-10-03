@@ -6,8 +6,8 @@ const db_utils = require('../db_utils/db_utils')
 router.get('/', async function (req, res, next) {
   const a = await db_utils.getAverageJourneyTime("LHR", "DXB");
   console.log(a)
-
-  res.render('index', { title: "Express" });
+  // res.render('index', { title: "Express" });
+  res.json({average:a});
 });
 
 router.get('/fullcsv', async function (req, res, next) {
