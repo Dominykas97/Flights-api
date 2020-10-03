@@ -68,14 +68,9 @@ function airportCodeToTimeOffset(airportCode) {
     })[0].offset.gmt
 }
 
-function airportOffSetDifferenceHours(airport1, airport2) {
-    return airportCodeToTimeOffset(airport1) - airportCodeToTimeOffset(airport2)
+function airportOffSetDifferenceHours(departureAirport, arrivalAirport) {
+    return airportCodeToTimeOffset(departureAirport) - airportCodeToTimeOffset(arrivalAirport)
 }
-
-function secondsToTime(t) {
-    return parseInt(t / 86400) + 'd ' + (new Date(t % 86400 * 1000)).toUTCString().replace(/.*(\d{2}):(\d{2}):(\d{2}).*/, "$1h $2m $3s");
-}
-
 
 module.exports = {
 
@@ -86,7 +81,6 @@ module.exports = {
     },
 
     createTableAndPopulate: function (tableName) {
-
         const typesFlightsFullCsv =
             "`id` INT(7) NOT NULL, "
             + "`depair` VARCHAR(3) NOT NULL, "
@@ -145,7 +139,6 @@ module.exports = {
 
         readCsvPopulateDB("../flighdata_B/flighdata_B.csv", "flighdata_B", typesFlightsFullCsv, columnsFlightsFullCsv);
         // readCsvPopulateDB("../flighdata_B/flighdata_B_segments.csv", "flighdata_B_segments", typesFlightsSegmentsCsv, columnsFlightsSegmentsCsv);
-
     }
 };
 
