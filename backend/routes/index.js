@@ -30,6 +30,14 @@ router.get('/weekday', async function (req, res, next) {
 
 });
 
+router.get('/businessDays', async function (req, res, next) {
+  // const depair = req.query.depair.toUpperCase()
+  const weekdaysByAirport = await db_utils.getBusinessDays();
+  console.log(weekdaysByAirport)
+  res.json(weekdaysByAirport);
+
+});
+
 router.get('/fullcsv', async function (req, res, next) {
   db_utils.createTableAndPopulate("flighdata_B")
 })

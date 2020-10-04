@@ -147,6 +147,33 @@ module.exports = {
         return journeyTimes
     },
 
+    getBusinessDays: async function () {
+        let days = {}
+        // SELECT `outjourneytimeseconds` FROM `flighdata_B` WHERE `depair`="LHR" and `destair`="DXB"
+        const [rows, fields] = await db.query("SELECT `outflightclass`, COUNT(*) as count FROM " + tableNames.FULL + " GROUP BY `outflightclass`");
+        console.log(rows)
+        rows.forEach(function (row) {
+            days[row['outflightclass']] = row['count']
+        })
+
+
+        const [rows2, fields2] = await db.query("SELECT `inflightclass`, COUNT(*) as count FROM " + tableNames.FULL + " WHERE `oneway`=\"0\" GROUP BY `inflightclass`");
+        console.log(rows2)
+        rows2.forEach(function (row) {
+            days[row['inflightclass']] += row['count']
+        })
+
+        const [rows3, fields3] = await db.query("SELECT `class`, COUNT(*) as count FROM " + tableNames.SEGMENTS + " GROUP BY `class`");
+        console.log(rows3)
+        rows3.forEach(function (row) {
+            days[row['class']] += row['count']
+        })
+
+        let sum = Object.values(days).reduce((a, b) => a + b, 0)
+
+        return { days: days, count: sum }
+    },
+
     getWeekdayPopularityByAirport: async function (depair) {
         let weekdays = {
             Monday: 0,

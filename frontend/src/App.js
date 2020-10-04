@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
+import { FormattedNumber } from "react-intl";
 
 function App() {
   const [averageJourneyTime, setAverageJourneyTime] = useState('')
@@ -7,6 +8,8 @@ function App() {
   const [destair, setDestair] = useState('DXB')
   const [mostPopularDayByAirport, setMostPopularDayByAirport] = useState('')
   const [depairWeekday, setDepairWeekday] = useState('MAN')
+  const [flightClasses, setFlightClasses] = useState({ Business: 1 })
+  const [flightsCount, setFlightsCount] = useState(1);
 
   const fetchAverageJourneyTime = async () => {
     const params = { depair: depair, destair: destair };
@@ -38,11 +41,38 @@ function App() {
         setMostPopularDayByAirport(mostPopularDay)
       }
       )
+  }
+
+  const fetchBusiness = async () => {
+    // const params = { depair: depair, destair: destair };
+    // const urlParams = new URLSearchParams(Object.entries(params));
+
+    await fetch('/api/businessDays')
+      .then(res => res.json()).then((values) => {
+        // console.log(Object.values(a));
+        console.log(values)
+        setFlightClasses(values.days)
+        // setAverageJourneyTime(a)
+        setFlightsCount(values.count)
+        //   setFlighingClasses((prevState) => ({
+        //     ...prevState,
+        //     [event.target.id]: event.target.value
+        //  }));
+        // return values;
+        console.log(flightClasses)
+      }
+
+      )
+    // .then(
+    // () => console.log(flightClasses))
+
 
   }
+
   useEffect(() => {
     fetchAverageJourneyTime();
-    fetchMostPopularDayByAirport()
+    fetchMostPopularDayByAirport();
+    // fetchBusiness()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -87,7 +117,9 @@ function App() {
         <button onClick={fetchMostPopularDayByAirport}>Fetch most popular airport day</button>
         <div>{mostPopularDayByAirport}</div>
 
+        <button onClick={fetchBusiness}>Fetch bussiness flights' percentage</button>
 
+        <div> {flightsCount !== 1 ? (flightClasses.Business / flightsCount * 100).toFixed(2) + "%" : null}</div>
       </header>
     </div>
   );
