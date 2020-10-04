@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const db_utils = require('../db_utils/db_utils')
-const airports = require('airport-codes');
 
 function secondsToTime(t) {
   return parseInt(t / 86400) + 'd ' + (new Date(t % 86400 * 1000)).toUTCString().replace(/.*(\d{2}):(\d{2}):(\d{2}).*/, "$1h $2m $3s");
@@ -61,8 +60,8 @@ router.get('/countrypopularity', async function (req, res, next) {
 
 });
 
-router.get('/fullcsv', async function (req, res, next) {
-  db_utils.createTableAndPopulate("flighdata_B")
+router.get('/csvtosql', async function (req, res, next) {
+  db_utils.createTableAndPopulate()
 })
 
 module.exports = router;
