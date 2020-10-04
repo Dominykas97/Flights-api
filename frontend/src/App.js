@@ -6,7 +6,10 @@ function App() {
   const [averageJourneyTime, setAverageJourneyTime] = useState('')
   const [depair, setDepair] = useState('LHR')
   const [destair, setDestair] = useState('DXB')
+  const [country, setCountry] = useState('United Kingdom')
   const [mostPopularDayByAirport, setMostPopularDayByAirport] = useState('')
+  const [countryAirports, setCountryAirports] = useState('')
+  const [countryAirportsFlighsCount, setCountryAirportsFlighsCount] = useState('')
   const [depairWeekday, setDepairWeekday] = useState('MAN')
   const [flightClasses, setFlightClasses] = useState({ Business: 1 })
   const [flightsCount, setFlightsCount] = useState(1);
@@ -29,16 +32,32 @@ function App() {
     const urlParamsWeekday = new URLSearchParams(Object.entries(paramsWeekday));
 
     await fetch('/api/weekday?' + urlParamsWeekday)
+      .then(res => res.json()).then(data => {
+        console.log(data);
+        if (data.count.constructor === Number) {
+
+          const mostPopularDay = Object.keys(data.weekdays).filter(x => {
+            return data.weekdays[x] === Math.max.apply(null,
+              Object.values(data.weekdays));
+          });
+          // console.log(mostPopularDay)
+          setMostPopularDayByAirport(mostPopularDay)
+        } else {
+          setMostPopularDayByAirport("Airport does not exist")
+
+        }
+      }
+      )
+  }
+
+  const fetchCountryPopularity = async () => {
+    const paramsCountry = { country: country };
+    const urlParamsCountry = new URLSearchParams(Object.entries(paramsCountry));
+
+    await fetch('/api/countrypopularity?' + urlParamsCountry)
       .then(res => res.json()).then(a => {
         console.log(a);
-        const mostPopularDay = Object.keys(a).filter(x => {
-          return a[x] === Math.max.apply(null,
-            Object.values(a));
-        });
-        // };
-        console.log(mostPopularDay)
-        // Object.values(obj);
-        setMostPopularDayByAirport(mostPopularDay)
+        setCountryAirportsFlighsCount(a.count)
       }
       )
   }
@@ -50,28 +69,18 @@ function App() {
     await fetch('/api/businessDays')
       .then(res => res.json()).then((values) => {
         // console.log(Object.values(a));
-        console.log(values)
+        // console.log(values)
         setFlightClasses(values.days)
-        // setAverageJourneyTime(a)
         setFlightsCount(values.count)
-        //   setFlighingClasses((prevState) => ({
-        //     ...prevState,
-        //     [event.target.id]: event.target.value
-        //  }));
-        // return values;
-        console.log(flightClasses)
+        // console.log(flightClasses)
       }
-
       )
-    // .then(
-    // () => console.log(flightClasses))
-
-
   }
 
   useEffect(() => {
     fetchAverageJourneyTime();
     fetchMostPopularDayByAirport();
+    fetchCountryPopularity();
     // fetchBusiness()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -88,6 +97,10 @@ function App() {
 
   const onChangeHandlerDepairWeekday = event => {
     setDepairWeekday(event.target.value);
+  };
+
+  const onChangeHandlerCountry = event => {
+    setCountry(event.target.value);
   };
 
   return (
@@ -118,8 +131,18 @@ function App() {
         <div>{mostPopularDayByAirport}</div>
 
         <button onClick={fetchBusiness}>Fetch bussiness flights' percentage</button>
-
         <div> {flightsCount !== 1 ? (flightClasses.Business / flightsCount * 100).toFixed(2) + "%" : null}</div>
+
+
+        From :<input
+          type="text"
+          name="name"
+          onChange={onChangeHandlerCountry}
+          value={country}
+        />
+        <button onClick={fetchCountryPopularity}>Fetch country</button>
+        <div>{countryAirportsFlighsCount}</div>
+
       </header>
     </div>
   );

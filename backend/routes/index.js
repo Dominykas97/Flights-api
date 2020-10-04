@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db_utils = require('../db_utils/db_utils')
+const airports = require('airport-codes');
 
 function secondsToTime(t) {
   return parseInt(t / 86400) + 'd ' + (new Date(t % 86400 * 1000)).toUTCString().replace(/.*(\d{2}):(\d{2}):(\d{2}).*/, "$1h $2m $3s");
@@ -26,15 +27,37 @@ router.get('/weekday', async function (req, res, next) {
   const depair = req.query.depair.toUpperCase()
   const weekdaysByAirport = await db_utils.getWeekdayPopularityByAirport(depair);
   console.log(weekdaysByAirport)
-  res.json(weekdaysByAirport);
+
+  if (weekdaysByAirport.count > 0) {
+    res.json(weekdaysByAirport);
+  }
+  else {
+    res.status(400).json({ count: "This airport does not exist." })
+  }
+
 
 });
 
 router.get('/businessDays', async function (req, res, next) {
-  // const depair = req.query.depair.toUpperCase()
+
   const weekdaysByAirport = await db_utils.getBusinessDays();
-  console.log(weekdaysByAirport)
+
   res.json(weekdaysByAirport);
+
+});
+
+
+router.get('/countrypopularity', async function (req, res, next) {
+  const country = req.query.country
+
+  const countryPopularity = await db_utils.getCountryPopularity(country);
+
+  if (countryPopularity.airports.length > 0) {
+    res.json(countryPopularity);
+  }
+  else {
+    res.status(400).json({ count: "This country does not exist." })
+  }
 
 });
 

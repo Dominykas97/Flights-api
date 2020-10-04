@@ -2,6 +2,7 @@ const fs = require('fs');
 const fastcsv = require('fast-csv');
 const airportTimezone = require('airport-timezone');
 const db = require('../db_utils/db')
+const aviation = require('simple-aviation-api');
 
 const tableNames = {
     FULL: "flighdata_B",
@@ -121,6 +122,20 @@ function airportOffSetDifferenceHours(departureAirport, arrivalAirport) {
     return airportCodeToTimeOffset(departureAirport) - airportCodeToTimeOffset(arrivalAirport)
 }
 
+
+function getAirportsByCountry(country) {
+
+    const x = aviation.getAllAirportsBy('country', country);//country.charAt(0).toUpperCase() + country.slice(1).toLowerCase());
+    const airports = []
+
+    x.forEach(function (row) {
+        if (row['iata'] !== '')
+            airports.push(row['iata'])
+    })
+    console.log(airports)
+    return airports
+}
+
 module.exports = {
 
     getJourneyTimes: async function (depair, destair) {
@@ -151,20 +166,20 @@ module.exports = {
         let days = {}
         // SELECT `outjourneytimeseconds` FROM `flighdata_B` WHERE `depair`="LHR" and `destair`="DXB"
         const [rows, fields] = await db.query("SELECT `outflightclass`, COUNT(*) as count FROM " + tableNames.FULL + " GROUP BY `outflightclass`");
-        console.log(rows)
+        // console.log(rows)
         rows.forEach(function (row) {
             days[row['outflightclass']] = row['count']
         })
 
 
         const [rows2, fields2] = await db.query("SELECT `inflightclass`, COUNT(*) as count FROM " + tableNames.FULL + " WHERE `oneway`=\"0\" GROUP BY `inflightclass`");
-        console.log(rows2)
+        // console.log(rows2)
         rows2.forEach(function (row) {
             days[row['inflightclass']] += row['count']
         })
 
         const [rows3, fields3] = await db.query("SELECT `class`, COUNT(*) as count FROM " + tableNames.SEGMENTS + " GROUP BY `class`");
-        console.log(rows3)
+        // console.log(rows3)
         rows3.forEach(function (row) {
             days[row['class']] += row['count']
         })
@@ -203,7 +218,44 @@ module.exports = {
             weekdays[weekday[row.weekday]] += row.count
         })
 
-        return weekdays
+        let sum = Object.values(weekdays).reduce((a, b) => a + b, 0)
+
+
+        return {weekdays:weekdays, count:sum}
+    },
+
+    getCountryPopularity: async function (country) {
+        const airports = getAirportsByCountry(country)
+
+        let airportInCountry = {}
+        let airportsUsed = []
+        if(airports.length>0){
+
+            // SELECT WEEKDAY(`outdepartdate`) as weekday, COUNT(*) FROM `flighdata_B` WHERE `depair`="MAN" GROUP BY weekday 
+            const [rows, fields] = await db.query("SELECT `depair`, COUNT(*) as count FROM " + tableNames.FULL
+            + " WHERE `depair` IN (?) GROUP BY `depair`", [airports]);
+            console.log(rows)
+            rows.forEach(function (row) {
+                airportsUsed.push(row.depair)
+                airportInCountry[row.depair] = row.count
+            })
+        }
+
+        // const [rows2, fields2] = await db.query("SELECT WEEKDAY(`indepartdate`) as weekday, COUNT(*) as count FROM " + tableNames.FULL
+        //     + " WHERE `oneway`=\"0\" AND `depair`=? GROUP BY weekday ", [depair]);
+        // rows2.forEach(function (row) {
+        //     weekdays[weekday[row.weekday]] += row.count
+        // })
+
+        // const [rows3, fields3] = await db.query("SELECT WEEKDAY(`depdate`) as weekday, COUNT(*) as count FROM " + tableNames.SEGMENTS
+        //     + " WHERE `depdate`!=NULL AND `depcode`=? GROUP BY weekday ", [depair]);
+        // rows3.forEach(function (row) {
+        //     weekdays[weekday[row.weekday]] += row.count
+        // })
+        let sum = Object.values(airportInCountry).reduce((a, b) => a + b, 0)
+
+
+        return { airports: airportsUsed, count: sum, data: airportInCountry }
     },
 
     createTableAndPopulate: function (tableName) {

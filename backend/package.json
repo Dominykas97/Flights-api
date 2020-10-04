@@ -6,6 +6,7 @@
     "start": "nodemon ./bin/www"
   },
   "dependencies": {
+    "airport-codes": "^1.0.2",
     "airport-timezone": "^1.1.0",
     "cookie-parser": "~1.4.4",
     "cors": "^2.8.5",
@@ -17,7 +18,8 @@
     "jade": "~1.11.0",
     "morgan": "~1.9.1",
     "mysql": "^2.18.1",
-    "mysql2": "^2.2.5"
+    "mysql2": "^2.2.5",
+    "simple-aviation-api": "^1.0.1"
   },
   "devDependencies": {
     "nodemon": "^2.0.4"
