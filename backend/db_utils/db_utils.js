@@ -3,6 +3,11 @@ const fastcsv = require('fast-csv');
 const airportTimezone = require('airport-timezone');
 const db = require('../db_utils/db')
 
+const tableNames = {
+    FULL: "flighdata_B",
+    SEGMENTS: "flighdata_B_segments"
+}
+
 const originalColumnsFull = {
     id: 0,
     depair: 1,
@@ -43,7 +48,7 @@ const modifiedColumnsFull = {
     outdeparttime: 7,
     outarrivaldate: 8,
     outarrivaltime: 9,
-    journeytimeseconds: 10,
+    outjourneytimeseconds: 10,
     outbookingclass: 11,
     outflightclass: 12,
     outcarriercode: 13,
@@ -52,14 +57,49 @@ const modifiedColumnsFull = {
     indeparttime: 16,
     inarrivaldate: 17,
     inarrivaltime: 18,
-    inbookingclass: 19,
-    inflightclass: 20,
-    incarriercode: 21,
-    originalprice: 22,
-    originalcurrency: 23,
-    reservation: 24,
-    carrier: 25,
-    oneway: 26
+    injourneytimeseconds: 19,
+    inbookingclass: 20,
+    inflightclass: 21,
+    incarriercode: 22,
+    originalprice: 23,
+    originalcurrency: 24,
+    reservation: 25,
+    carrier: 26,
+    oneway: 27
+}
+
+
+const originalColumnsSegments = {
+    flightid: 0,
+    depcode: 1,
+    arrcode: 2,
+    depdate: 3,
+    arrdate: 4,
+    deptime: 5,
+    arrtime: 6,
+    depterminal: 7,
+    arrterminal: 8,
+    flightno: 9,
+    journey: 10,
+    class: 11,
+    bookingclass: 12
+}
+
+const modifiedColumnsSegments = {
+    flightid: 0,
+    depcode: 1,
+    arrcode: 2,
+    depdate: 3,
+    arrdate: 4,
+    deptime: 5,
+    arrtime: 6,
+    journeytimeseconds: 7,
+    depterminal: 8,
+    arrterminal: 9,
+    flightno: 10,
+    journey: 11,
+    class: 12,
+    bookingclass: 13
 }
 
 var weekday = new Array(7);
@@ -83,17 +123,37 @@ function airportOffSetDifferenceHours(departureAirport, arrivalAirport) {
 
 module.exports = {
 
-    getAverageJourneyTime: async function (depair, destair) {
+    getJourneyTimes: async function (depair, destair) {
         let tableName = "flighdata_B"
-        const [rows, fields] = await db.query("SELECT AVG(`journeytimeseconds`) FROM " + tableName + " WHERE `depair`= ? AND`destair`= ?", [depair, destair]);
-        return rows[0]['AVG(`journeytimeseconds`)']
+        // SELECT `outjourneytimeseconds` FROM `flighdata_B` WHERE `depair`="LHR" and `destair`="DXB"
+        const [rows, fields] = await db.query("SELECT `outjourneytimeseconds` FROM " + tableNames.FULL + " WHERE `depair`= ? AND`destair`= ?", [depair, destair]);
+        // console.log(rows)
+        let journeyTimes = []
+        rows.forEach(function (row) {
+            journeyTimes.push(row['outjourneytimeseconds'])
+        })
+
+        const [rows2, fields2] = await db.query("SELECT `injourneytimeseconds` FROM " + tableNames.FULL + " WHERE `indepartcode`= ? AND`inarrivecode`= ?", [depair, destair]);
+        rows2.forEach(function (row) {
+            journeyTimes.push(row['injourneytimeseconds'])
+        })
+
+
+        const [rows3, fields3] = await db.query("SELECT `journeytimeseconds` FROM " + tableNames.SEGMENTS
+            + " WHERE `deptime`!=\"00:00:00\" AND `arrtime`!=\"00:00:00\" AND `depcode`= ? AND`arrcode`= ?", [depair, destair]);
+        rows3.forEach(function (row) {
+            journeyTimes.push(row['journeytimeseconds'])
+        })
+        console.log(rows3)
+        // return rows[0]['journeytimeseconds']
+        return journeyTimes
     },
 
     getWeekdayPopularityByAirport: async function (depair) {
         let tableName = "flighdata_B"
         // SELECT WEEKDAY(`outdepartdate`) as weekday, COUNT(*) FROM `flighdata_B` WHERE `depair`="MAN" GROUP BY weekday 
-        const [rows, fields] = await db.query("SELECT WEEKDAY(`outdepartdate`) as weekday, COUNT(*) as count FROM " + tableName + " WHERE `depair`=? GROUP BY weekday ", [depair]);
-        console.log(rows)
+        const [rows, fields] = await db.query("SELECT WEEKDAY(`outdepartdate`) as weekday, COUNT(*) as count FROM " + tableNames.FULL + " WHERE `depair`=? GROUP BY weekday ", [depair]);
+        // console.log(rows)
 
         let weekdays = {
             Monday: 0,
@@ -124,7 +184,7 @@ module.exports = {
             + "`outdeparttime` TIME NOT NULL, "
             + "`outarrivaldate` DATE NOT NULL, "
             + "`outarrivaltime` TIME NOT NULL, "
-            + "`journeytimeseconds` INT(7), "
+            + "`outjourneytimeseconds` INT(7), "
             + "`outbookingclass` VARCHAR(20), "
             + "`outflightclass` VARCHAR(30), "
             + "`outcarriercode` VARCHAR(2), "
@@ -133,6 +193,7 @@ module.exports = {
             + "`indeparttime` TIME, "
             + "`inarrivaldate` DATE, "
             + "`inarrivaltime` TIME, "
+            + "`injourneytimeseconds` INT(7), "
             + "`inbookingclass` VARCHAR(20), "
             + "`inflightclass` VARCHAR(30), "
             + "`incarriercode` VARCHAR(2), "
@@ -151,6 +212,7 @@ module.exports = {
             + "`arrdate` DATE, "
             + "`deptime` TIME NOT NULL, "
             + "`arrtime` TIME NOT NULL, "
+            + "`journeytimeseconds` INT(7), "
             + "`depterminal` VARCHAR(3), "
             + "`arrterminal` VARCHAR(3), "
             + "`flightno` VARCHAR(8) NOT NULL,"
@@ -161,16 +223,16 @@ module.exports = {
 
         const columnsFlightsFullCsv =
             "id, depair, destair, indepartcode, inarrivecode, outflightno, outdepartdate, outdeparttime, "
-            + "outarrivaldate, outarrivaltime, journeytimeseconds, outbookingclass, outflightclass, outcarriercode, inflightno, "
-            + "indepartdate, indeparttime, inarrivaldate, inarrivaltime, inbookingclass, inflightclass, "
+            + "outarrivaldate, outarrivaltime, outjourneytimeseconds, outbookingclass, outflightclass, outcarriercode, inflightno, "
+            + "indepartdate, indeparttime, inarrivaldate, inarrivaltime, injourneytimeseconds, inbookingclass, inflightclass, "
             + "incarriercode, originalprice, originalcurrency, reservation, carrier, oneway";
 
         const columnsFlightsSegmentsCsv =
-            "flightid, depcode, arrcode, depdate, arrdate, deptime, arrtime, "
+            "flightid, depcode, arrcode, depdate, arrdate, deptime, arrtime, journeytimeseconds, "
             + "depterminal, arrterminal, flightno, journey, class, bookingclass"
 
-        readCsvPopulateDB("../flighdata_B/flighdata_B.csv", "flighdata_B", typesFlightsFullCsv, columnsFlightsFullCsv);
-        // readCsvPopulateDB("../flighdata_B/flighdata_B_segments.csv", "flighdata_B_segments", typesFlightsSegmentsCsv, columnsFlightsSegmentsCsv);
+        // readCsvPopulateDB("../flighdata_B/flighdata_B.csv", tableNames.FULL, typesFlightsFullCsv, columnsFlightsFullCsv);
+        readCsvPopulateDB("../flighdata_B/flighdata_B_segments.csv", tableNames.SEGMENTS, typesFlightsSegmentsCsv, columnsFlightsSegmentsCsv);
     }
 };
 
@@ -190,28 +252,55 @@ function readCsvPopulateDB(csv, tableName, sqlTypesFlights, sqlColumnsFlights) {
         .on("end", function () {
             // remove the first line: header
             csvData.shift();
-            for (rowIndex = 0; rowIndex < csvData.length; rowIndex++) {
-                const row = csvData[rowIndex];
-                const timeDiff = airportOffSetDifferenceHours(row[originalColumnsFull.depair], row[originalColumnsFull.destair]);
+            if (tableName === tableNames.FULL) {
+                for (rowIndex = 0; rowIndex < csvData.length; rowIndex++) {
+                    const row = csvData[rowIndex];
+                    const outTimeDiff = airportOffSetDifferenceHours(row[originalColumnsFull.depair], row[originalColumnsFull.destair]);
 
-                let journeyTimeSecondsTimezoneAdjusted = (new Date(row[originalColumnsFull.outarrivaldate] + ' ' + row[originalColumnsFull.outarrivaltime])
-                    - new Date(row[originalColumnsFull.outdepartdate] + ' ' + row[originalColumnsFull.outdeparttime])) / 1000 + 3600 * timeDiff
+                    let outJourneyTimeSecondsTimezoneAdjusted = calculateJourneyTime(row[originalColumnsFull.outarrivaldate], row[originalColumnsFull.outarrivaltime]
+                        , row[originalColumnsFull.outdepartdate], row[originalColumnsFull.outdeparttime], outTimeDiff)
+                    row.splice(modifiedColumnsFull.outjourneytimeseconds, 0, outJourneyTimeSecondsTimezoneAdjusted)
 
-                row.splice(modifiedColumnsFull.journeytimeseconds, 0, journeyTimeSecondsTimezoneAdjusted)
+                    if (row[originalColumnsFull.oneway + 1] === '0') {
+                        const inTimeDiff = airportOffSetDifferenceHours(row[modifiedColumnsFull.indepartcode], row[originalColumnsFull.inarrivecode]);
+                        let inJourneyTimeSecondsTimezoneAdjusted = calculateJourneyTime(row[modifiedColumnsFull.inarrivaldate], row[modifiedColumnsFull.inarrivaltime]
+                            , row[modifiedColumnsFull.indepartdate], row[modifiedColumnsFull.indeparttime], inTimeDiff)
 
-                // let day = weekday[new Date(row[originalColumnsFull.outarrivaldate]).getDay()]
-                // if(day === undefined){
-                //     console.log(row)
-                // }
-                // console.log()
+                        row.splice(modifiedColumnsFull.injourneytimeseconds, 0, inJourneyTimeSecondsTimezoneAdjusted)
+                    }
+                    else {
+                        row.splice(modifiedColumnsFull.injourneytimeseconds, 0, null)
 
-
+                    }
+                }
             }
+            if (tableName === tableNames.SEGMENTS) {
+                for (rowIndex = 0; rowIndex < csvData.length; rowIndex++) {
+                    const row = csvData[rowIndex];
+                    const timeDiff = airportOffSetDifferenceHours(row[originalColumnsSegments.depcode], row[originalColumnsSegments.arrcode]);
 
+                    const arrDate = row[originalColumnsSegments.arrdate];
+                    const arrTime = row[originalColumnsSegments.arrtime];
+                    const depDate = row[originalColumnsSegments.depdate];
+                    const depTime = row[originalColumnsSegments.deptime];
 
-            // populateDb(tableName, csvData, sqlTypesFlights, sqlColumnsFlights);
+                    let journeyTimeSecondsTimezoneAdjusted = null
+                    if (arrDate === null | arrTime === null | depDate === null | depTime === null) {
+                        row.splice(modifiedColumnsSegments.journeytimeseconds, 0, null)
+                    }
+                    else {
+                        journeyTimeSecondsTimezoneAdjusted = calculateJourneyTime(arrDate, arrTime, depDate, depTime, timeDiff)
+                        row.splice(modifiedColumnsSegments.journeytimeseconds, 0, journeyTimeSecondsTimezoneAdjusted)
+                    }
+                }
+            }
+            populateDb(tableName, csvData, sqlTypesFlights, sqlColumnsFlights);
         });
     stream.pipe(csvStream);
+
+    function calculateJourneyTime(arrivalDate, arrivalTime, departureDate, departureTime, airportsTimezoneDifference) {
+        return (new Date(arrivalDate + ' ' + arrivalTime) - new Date(departureDate + ' ' + departureTime)) / 1000 + 3600 * airportsTimezoneDifference;
+    }
 }
 
 async function populateDb(tableName, csvData, sqlTypesFlights, sqlColumnsFlights) {

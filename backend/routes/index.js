@@ -11,17 +11,22 @@ router.get('/averageJourneyTime', async function (req, res, next) {
   const depair = req.query.depair.toUpperCase()
   const destair = req.query.destair.toUpperCase()
 
-  const a = await db_utils.getAverageJourneyTime(depair, destair);
-  console.log(a)
-
-  res.json({ average: secondsToTime(a) });
+  const journeys = await db_utils.getJourneyTimes(depair, destair);
+  console.log(journeys)
+  if (journeys.length > 0) {
+    const averageJourneyTime = journeys.reduce((prev, curr) => prev + curr) / journeys.length;
+    res.json({ average: secondsToTime(averageJourneyTime), data: journeys });
+  }
+  else {
+    res.status(400).json({ average: "This journey does not exist." })
+  }
 });
 
 router.get('/weekday', async function (req, res, next) {
   const depair = req.query.depair.toUpperCase()
-  const a = await db_utils.getWeekdayPopularityByAirport(depair);
-  console.log(a)
-  res.json(a);
+  const weekdaysByAirport = await db_utils.getWeekdayPopularityByAirport(depair);
+  console.log(weekdaysByAirport)
+  res.json(weekdaysByAirport);
 
 });
 

@@ -14,7 +14,7 @@ function App() {
 
     await fetch('/api/averageJourneyTime?' + urlParams)
       .then(res => res.json()).then(a => {
-        console.log(a.average);
+        console.log(a);
         setAverageJourneyTime(a.average)
       }
       )
@@ -29,7 +29,7 @@ function App() {
       .then(res => res.json()).then(a => {
         console.log(a);
         const mostPopularDay = Object.keys(a).filter(x => {
-          return a[x] == Math.max.apply(null,
+          return a[x] === Math.max.apply(null,
             Object.values(a));
         });
         // };
@@ -41,8 +41,9 @@ function App() {
 
   }
   useEffect(() => {
-    fetchAverageJourneyTime()
+    fetchAverageJourneyTime();
     fetchMostPopularDayByAirport()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 
