@@ -62,6 +62,15 @@ const modifiedColumnsFull = {
     oneway: 26
 }
 
+var weekday = new Array(7);
+weekday[0] = "Monday";
+weekday[1] = "Tuesday";
+weekday[2] = "Wednesday";
+weekday[3] = "Thursday";
+weekday[4] = "Friday";
+weekday[5] = "Saturday";
+weekday[6] = "Sunday";
+
 function airportCodeToTimeOffset(airportCode) {
     return airportTimezone.filter(function (airport) {
         return airport.code === airportCode;
@@ -78,6 +87,29 @@ module.exports = {
         let tableName = "flighdata_B"
         const [rows, fields] = await db.query("SELECT AVG(`journeytimeseconds`) FROM " + tableName + " WHERE `depair`= ? AND`destair`= ?", [depair, destair]);
         return rows[0]['AVG(`journeytimeseconds`)']
+    },
+
+    getWeekdayPopularityByAirport: async function (depair) {
+        let tableName = "flighdata_B"
+        // SELECT WEEKDAY(`outdepartdate`) as weekday, COUNT(*) FROM `flighdata_B` WHERE `depair`="MAN" GROUP BY weekday 
+        const [rows, fields] = await db.query("SELECT WEEKDAY(`outdepartdate`) as weekday, COUNT(*) as count FROM " + tableName + " WHERE `depair`=? GROUP BY weekday ", [depair]);
+        console.log(rows)
+
+        let weekdays = {
+            Monday: 0,
+            Tuesday: 0,
+            Wednesday: 0,
+            Thursday: 0,
+            Friday: 0,
+            Saturday: 0,
+            Sunday: 0
+        }
+
+        rows.forEach(function (row) {
+            weekdays[weekday[row.weekday]] = row.count
+        })
+
+        return weekdays
     },
 
     createTableAndPopulate: function (tableName) {
@@ -166,8 +198,18 @@ function readCsvPopulateDB(csv, tableName, sqlTypesFlights, sqlColumnsFlights) {
                     - new Date(row[originalColumnsFull.outdepartdate] + ' ' + row[originalColumnsFull.outdeparttime])) / 1000 + 3600 * timeDiff
 
                 row.splice(modifiedColumnsFull.journeytimeseconds, 0, journeyTimeSecondsTimezoneAdjusted)
+
+                // let day = weekday[new Date(row[originalColumnsFull.outarrivaldate]).getDay()]
+                // if(day === undefined){
+                //     console.log(row)
+                // }
+                // console.log()
+
+
             }
-            populateDb(tableName, csvData, sqlTypesFlights, sqlColumnsFlights);
+
+
+            // populateDb(tableName, csvData, sqlTypesFlights, sqlColumnsFlights);
         });
     stream.pipe(csvStream);
 }
