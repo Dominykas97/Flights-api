@@ -4,6 +4,7 @@ const airportTimezone = require('airport-timezone');
 const db = require('../db_utils/db')
 const aviation = require('simple-aviation-api');
 const constants2 = require('./constants')
+const titleize = require('titleize');
 
 const tableNames = {
     FULL: "flighdata_B",
@@ -32,9 +33,9 @@ function airportOffSetDifferenceHours(departureAirport, arrivalAirport) {
 
 function getAirportsByCountry(country) {
 
-    const x = aviation.getAllAirportsBy('country', country);//country.charAt(0).toUpperCase() + country.slice(1).toLowerCase());
+    const x = aviation.getAllAirportsBy('country', titleize(country));//country.charAt(0).toUpperCase() + country.slice(1).toLowerCase());
     const airports = []
-    console.log(x)
+    // console.log(x)
 
     x.forEach(function (row) {
         if (row['iata'] !== '')
@@ -92,9 +93,9 @@ module.exports = {
             days[row['class']] += row['count']
         })
 
-        let sum = Object.values(days).reduce((a, b) => a + b, 0)
+        // let sum = //Object.values(days).reduce((a, b) => a + b, 0)
 
-        return { days: days, count: sum }
+        return { days: days, count: calculateCount(days) }
     },
 
     getWeekdayPopularityByAirport: async function (depair) {
@@ -126,10 +127,9 @@ module.exports = {
             weekdays[weekday[row.weekday]] += row.count
         })
 
-        let sum = Object.values(weekdays).reduce((a, b) => a + b, 0)
+        // let sum = 
 
-
-        return { weekdays: weekdays, count: sum }
+        return { weekdays: weekdays, count: calculateCount(weekdays) }
     },
 
     getCountryPopularity: async function (country) {
@@ -138,32 +138,47 @@ module.exports = {
         let airportInCountry = {}
         let airportsUsed = []
         if (airports.length > 0) {
-
+            const destair = "destair"
             // SELECT WEEKDAY(`outdepartdate`) as weekday, COUNT(*) FROM `flighdata_B` WHERE `depair`="MAN" GROUP BY weekday 
-            const [rows, fields] = await db.query("SELECT `depair`, COUNT(*) as count FROM " + tableNames.FULL
-                + " WHERE `depair` IN (?) GROUP BY `depair`", [airports]);
-            console.log(rows)
+            const [rows, fields] = await db.query("SELECT " + destair + ", COUNT(*) as count FROM " + tableNames.FULL
+                + " WHERE " + destair + " IN (?) GROUP BY " + destair, [airports]);
+            // console.log(rows)
             rows.forEach(function (row) {
-                airportsUsed.push(row.depair)
-                airportInCountry[row.depair] = row.count
+                airportsUsed.push(row.destair)
+                airportInCountry[row.destair] = row.count
+            })
+            const inarrivecode = "inarrivecode"
+            const [rows2, fields2] = await db.query("SELECT " + inarrivecode + ", COUNT(*) as count FROM " + tableNames.FULL
+                + " WHERE `oneway`=\"0\" AND " + inarrivecode + " IN (?) GROUP BY " + inarrivecode, [airports]);
+            // console.log(rows2)
+            rows2.forEach(function (row) {
+                if (!row.inarrivecode in airportsUsed) {
+                    airportsUsed.push(row.inarrivecode)
+                }
+                if (row[inarrivecode] in airportInCountry) {
+                    airportInCountry[row[inarrivecode]] += row['count']
+                } else {
+                    airportInCountry[row[inarrivecode]] = row['count']
+                }
+            })
+
+            const arrcode = "arrcode"
+            const [rows3, fields3] = await db.query("SELECT " + arrcode + ", COUNT(*) as count FROM " + tableNames.SEGMENTS
+                + " WHERE " + arrcode + " IN (?) GROUP BY " + arrcode, [airports]);
+            rows3.forEach(function (row) {
+                if (!row.inarrivecode in airportsUsed) {
+                    airportsUsed.push(row.arrcode)
+                }
+                if (row[arrcode] in airportInCountry) {
+                    airportInCountry[row[arrcode]] += row['count']
+                } else {
+                    airportInCountry[row[arrcode]] = row['count']
+                }
             })
         }
+        // let sum = //Object.values(airportInCountry).reduce((a, b) => a + b, 0)
 
-        // const [rows2, fields2] = await db.query("SELECT WEEKDAY(`indepartdate`) as weekday, COUNT(*) as count FROM " + tableNames.FULL
-        //     + " WHERE `oneway`=\"0\" AND `depair`=? GROUP BY weekday ", [depair]);
-        // rows2.forEach(function (row) {
-        //     weekdays[weekday[row.weekday]] += row.count
-        // })
-
-        // const [rows3, fields3] = await db.query("SELECT WEEKDAY(`depdate`) as weekday, COUNT(*) as count FROM " + tableNames.SEGMENTS
-        //     + " WHERE `depdate`!=NULL AND `depcode`=? GROUP BY weekday ", [depair]);
-        // rows3.forEach(function (row) {
-        //     weekdays[weekday[row.weekday]] += row.count
-        // })
-        let sum = Object.values(airportInCountry).reduce((a, b) => a + b, 0)
-
-
-        return { airports: airportsUsed, count: sum, data: airportInCountry }
+        return { airports: airportsUsed, count: calculateCount(airportInCountry), data: airportInCountry }
     },
 
     createTableAndPopulate: function () {
@@ -172,6 +187,10 @@ module.exports = {
         readCsvPopulateDB("../flighdata_B/flighdata_B_segments.csv", tableNames.SEGMENTS, constants2.typesFlightsSegmentsCsv, constants2.columnsFlightsSegmentsCsv);
     }
 };
+
+function calculateCount(weekdays) {
+    return Object.values(weekdays).reduce((a, b) => a + b, 0);
+}
 
 function readCsvPopulateDB(csv, tableName, sqlTypesFlights, sqlColumnsFlights) {
     let stream = fs.createReadStream(csv);
@@ -194,20 +213,27 @@ function readCsvPopulateDB(csv, tableName, sqlTypesFlights, sqlColumnsFlights) {
                     const row = csvData[rowIndex];
                     const outTimeDiff = airportOffSetDifferenceHours(row[constants2.originalColumnsFull.depair], row[constants2.originalColumnsFull.destair]);
 
-                    let outJourneyTimeSecondsTimezoneAdjusted = calculateJourneyTime(row[constants2.originalColumnsFull.outarrivaldate], row[constants2.originalColumnsFull.outarrivaltime]
-                        , row[constants2.originalColumnsFull.outdepartdate], row[constants2.originalColumnsFull.outdeparttime], outTimeDiff)
+                    let outJourneyTimeSecondsTimezoneAdjusted = calculateJourneyTime(
+                        row[constants2.originalColumnsFull.outarrivaldate],
+                        row[constants2.originalColumnsFull.outarrivaltime],
+                        row[constants2.originalColumnsFull.outdepartdate],
+                        row[constants2.originalColumnsFull.outdeparttime],
+                        outTimeDiff)
                     row.splice(constants2.modifiedColumnsFull.outjourneytimeseconds, 0, outJourneyTimeSecondsTimezoneAdjusted)
 
                     if (row[constants2.originalColumnsFull.oneway + 1] === '0') {
                         const inTimeDiff = airportOffSetDifferenceHours(row[constants2.modifiedColumnsFull.indepartcode], row[constants2.originalColumnsFull.inarrivecode]);
-                        let inJourneyTimeSecondsTimezoneAdjusted = calculateJourneyTime(row[constants2.modifiedColumnsFull.inarrivaldate], row[constants2.modifiedColumnsFull.inarrivaltime]
-                            , row[constants2.modifiedColumnsFull.indepartdate], row[constants2.modifiedColumnsFull.indeparttime], inTimeDiff)
+                        let inJourneyTimeSecondsTimezoneAdjusted = calculateJourneyTime(
+                            row[constants2.modifiedColumnsFull.inarrivaldate],
+                            row[constants2.modifiedColumnsFull.inarrivaltime],
+                            row[constants2.modifiedColumnsFull.indepartdate],
+                            row[constants2.modifiedColumnsFull.indeparttime],
+                            inTimeDiff)
 
                         row.splice(constants2.modifiedColumnsFull.injourneytimeseconds, 0, inJourneyTimeSecondsTimezoneAdjusted)
                     }
                     else {
                         row.splice(constants2.modifiedColumnsFull.injourneytimeseconds, 0, null)
-
                     }
                 }
             }

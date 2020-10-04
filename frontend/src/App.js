@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
-import { FormattedNumber } from "react-intl";
 
 function App() {
   const [averageJourneyTime, setAverageJourneyTime] = useState('')
   const [depair, setDepair] = useState('LHR')
   const [destair, setDestair] = useState('DXB')
-  const [country, setCountry] = useState('United Kingdom')
+  const [country, setCountry] = useState('Sweden')
   const [mostPopularDayByAirport, setMostPopularDayByAirport] = useState('')
   const [countryAirports, setCountryAirports] = useState('')
   const [countryAirportsFlighsCount, setCountryAirportsFlighsCount] = useState('')
@@ -20,7 +19,7 @@ function App() {
 
     await fetch('/api/averageJourneyTime?' + urlParams)
       .then(res => res.json()).then(a => {
-        console.log(a);
+        console.log("Journey times: ", a);
         setAverageJourneyTime(a.average)
       }
       )
@@ -33,7 +32,7 @@ function App() {
 
     await fetch('/api/weekday?' + urlParamsWeekday)
       .then(res => res.json()).then(data => {
-        console.log(data);
+        console.log("Popularity by weekday in " + depair + " : ", data);
         if (data.count.constructor === Number) {
 
           const mostPopularDay = Object.keys(data.weekdays).filter(x => {
@@ -55,24 +54,19 @@ function App() {
     const urlParamsCountry = new URLSearchParams(Object.entries(paramsCountry));
 
     await fetch('/api/countrypopularity?' + urlParamsCountry)
-      .then(res => res.json()).then(a => {
-        console.log(a);
-        setCountryAirportsFlighsCount(a.count)
+      .then(res => res.json()).then(airports => {
+        console.log("Airports in " + country + ": ", airports);
+        setCountryAirportsFlighsCount(airports.count)
       }
       )
   }
 
-  const fetchBusiness = async () => {
-    // const params = { depair: depair, destair: destair };
-    // const urlParams = new URLSearchParams(Object.entries(params));
-
+  const fetchBusinessDays = async () => {
     await fetch('/api/businessDays')
       .then(res => res.json()).then((values) => {
-        // console.log(Object.values(a));
-        // console.log(values)
+        console.log("Flight classes: ", values)
         setFlightClasses(values.days)
         setFlightsCount(values.count)
-        // console.log(flightClasses)
       }
       )
   }
@@ -80,8 +74,8 @@ function App() {
   useEffect(() => {
     fetchAverageJourneyTime();
     fetchMostPopularDayByAirport();
+    fetchBusinessDays()
     fetchCountryPopularity();
-    // fetchBusiness()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -106,43 +100,54 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        From :<input
-          type="text"
-          name="name"
-          onChange={onChangeHandlerDepair}
-          value={depair}
-        />
-        To: <input
-          type="text"
-          name="name"
-          onChange={onChangeHandlerDestair}
-          value={destair}
-        />
-        <button onClick={fetchAverageJourneyTime}>Fetch average journey time</button>
-        <div>{averageJourneyTime}</div>
+        <div>
+          Departure:{" "}
+          <input
+            type="text"
+            name="name"
+            onChange={onChangeHandlerDepair}
+            value={depair}
+          />
+        </div>
+        <div>
 
-        From :<input
+          Arrival:{" "}
+          <input
+            type="text"
+            name="name"
+            onChange={onChangeHandlerDestair}
+            value={destair}
+          />
+        </div>
+        <button className="button" onClick={fetchAverageJourneyTime}>Fetch average journey time</button>
+        <div className="result">{averageJourneyTime}</div>
+
+          From :<input
           type="text"
           name="name"
           onChange={onChangeHandlerDepairWeekday}
           value={depairWeekday}
         />
-        <button onClick={fetchMostPopularDayByAirport}>Fetch most popular airport day</button>
-        <div>{mostPopularDayByAirport}</div>
+        <button className="button" onClick={fetchMostPopularDayByAirport}>Fetch most popular airport day</button>
+        <div className="result">{mostPopularDayByAirport}</div>
 
-        <button onClick={fetchBusiness}>Fetch bussiness flights' percentage</button>
-        <div> {flightsCount !== 1 ? (flightClasses.Business / flightsCount * 100).toFixed(2) + "%" : null}</div>
+        <button className="button" onClick={fetchBusinessDays}>Fetch bussiness flights' percentage</button>
+        <div className="result"> {flightsCount !== 1 ? (flightClasses.Business / flightsCount * 100).toFixed(2) + "%" : null}</div>
 
 
-        From :<input
+        Country:<input
           type="text"
           name="name"
           onChange={onChangeHandlerCountry}
           value={country}
         />
-        <button onClick={fetchCountryPopularity}>Fetch country</button>
-        <div>{countryAirportsFlighsCount}</div>
-
+        <div></div>
+        <button className="button" onClick={fetchCountryPopularity}>Fetch percentage of total flights to this country</button>
+        <div className="result">{flightsCount !== 1
+          ? (countryAirportsFlighsCount !== "This country does not exist."
+            ? (countryAirportsFlighsCount / flightsCount * 100).toFixed(2) + "% "
+            : '')
+          + "(" + countryAirportsFlighsCount + ")" : null}</div>
       </header>
     </div>
   );

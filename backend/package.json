@@ -19,7 +19,8 @@
     "morgan": "~1.9.1",
     "mysql": "^2.18.1",
     "mysql2": "^2.2.5",
-    "simple-aviation-api": "^1.0.1"
+    "simple-aviation-api": "^1.0.1",
+    "titleize": "^2.1.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.4"
