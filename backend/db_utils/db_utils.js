@@ -124,37 +124,30 @@ function airportOffSetDifferenceHours(departureAirport, arrivalAirport) {
 module.exports = {
 
     getJourneyTimes: async function (depair, destair) {
-        let tableName = "flighdata_B"
-        // SELECT `outjourneytimeseconds` FROM `flighdata_B` WHERE `depair`="LHR" and `destair`="DXB"
-        const [rows, fields] = await db.query("SELECT `outjourneytimeseconds` FROM " + tableNames.FULL + " WHERE `depair`= ? AND`destair`= ?", [depair, destair]);
-        // console.log(rows)
         let journeyTimes = []
+
+        // SELECT `outjourneytimeseconds` FROM `flighdata_B` WHERE `depair`="LHR" and `destair`="DXB"
+        const [rows, fields] = await db.query("SELECT `outjourneytimeseconds` FROM " + tableNames.FULL
+            + " WHERE `depair`= ? AND`destair`= ?", [depair, destair]);
         rows.forEach(function (row) {
             journeyTimes.push(row['outjourneytimeseconds'])
         })
 
-        const [rows2, fields2] = await db.query("SELECT `injourneytimeseconds` FROM " + tableNames.FULL + " WHERE `indepartcode`= ? AND`inarrivecode`= ?", [depair, destair]);
+        const [rows2, fields2] = await db.query("SELECT `injourneytimeseconds` FROM " + tableNames.FULL
+            + " WHERE `indepartcode`= ? AND`inarrivecode`= ?", [depair, destair]);
         rows2.forEach(function (row) {
             journeyTimes.push(row['injourneytimeseconds'])
         })
-
 
         const [rows3, fields3] = await db.query("SELECT `journeytimeseconds` FROM " + tableNames.SEGMENTS
             + " WHERE `deptime`!=\"00:00:00\" AND `arrtime`!=\"00:00:00\" AND `depcode`= ? AND`arrcode`= ?", [depair, destair]);
         rows3.forEach(function (row) {
             journeyTimes.push(row['journeytimeseconds'])
         })
-        console.log(rows3)
-        // return rows[0]['journeytimeseconds']
         return journeyTimes
     },
 
     getWeekdayPopularityByAirport: async function (depair) {
-        let tableName = "flighdata_B"
-        // SELECT WEEKDAY(`outdepartdate`) as weekday, COUNT(*) FROM `flighdata_B` WHERE `depair`="MAN" GROUP BY weekday 
-        const [rows, fields] = await db.query("SELECT WEEKDAY(`outdepartdate`) as weekday, COUNT(*) as count FROM " + tableNames.FULL + " WHERE `depair`=? GROUP BY weekday ", [depair]);
-        // console.log(rows)
-
         let weekdays = {
             Monday: 0,
             Tuesday: 0,
@@ -164,9 +157,23 @@ module.exports = {
             Saturday: 0,
             Sunday: 0
         }
-
+        // SELECT WEEKDAY(`outdepartdate`) as weekday, COUNT(*) FROM `flighdata_B` WHERE `depair`="MAN" GROUP BY weekday 
+        const [rows, fields] = await db.query("SELECT WEEKDAY(`outdepartdate`) as weekday, COUNT(*) as count FROM " + tableNames.FULL
+            + " WHERE `depair`=? GROUP BY weekday ", [depair]);
         rows.forEach(function (row) {
-            weekdays[weekday[row.weekday]] = row.count
+            weekdays[weekday[row.weekday]] += row.count
+        })
+
+        const [rows2, fields2] = await db.query("SELECT WEEKDAY(`indepartdate`) as weekday, COUNT(*) as count FROM " + tableNames.FULL
+            + " WHERE `oneway`=\"0\" AND `depair`=? GROUP BY weekday ", [depair]);
+        rows2.forEach(function (row) {
+            weekdays[weekday[row.weekday]] += row.count
+        })
+
+        const [rows3, fields3] = await db.query("SELECT WEEKDAY(`depdate`) as weekday, COUNT(*) as count FROM " + tableNames.SEGMENTS
+            + " WHERE `depdate`!=NULL AND `depcode`=? GROUP BY weekday ", [depair]);
+        rows3.forEach(function (row) {
+            weekdays[weekday[row.weekday]] += row.count
         })
 
         return weekdays
