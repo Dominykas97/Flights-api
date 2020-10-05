@@ -166,7 +166,7 @@ function App() {
           </Row>
           <Row className="box">
             <Col>
-              <button className="button" onClick={fetchBusinessDays}>Fetch bussiness flights' percentage</button>
+              <button className="button" onClick={fetchBusinessDays}>Fetch business flights' percentage</button>
             </Col>
             <Col>
               <div className="result"> {flightsCount !== 1 ? (flightClasses.Business / flightsCount * 100).toFixed(2) + "%" : null}</div>
