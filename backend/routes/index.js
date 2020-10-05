@@ -60,6 +60,15 @@ router.get('/countrypopularity', async function (req, res, next) {
 
 });
 
+router.get('/prices', async function (req, res, next) {
+
+  const countryPopularity = await db_utils.getHighestPriceAirline();
+
+  res.json(countryPopularity);
+
+});
+
+
 router.get('/csvtosql', async function (req, res, next) {
   db_utils.createTableAndPopulate()
 })

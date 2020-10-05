@@ -53,9 +53,10 @@ const modifiedColumnsFull = {
     incarriercode: 22,
     originalprice: 23,
     originalcurrency: 24,
-    reservation: 25,
-    carrier: 26,
-    oneway: 27
+    priceingbp: 25,
+    reservation: 26,
+    carrier: 27,
+    oneway: 28
 }
 
 const originalColumnsSegments = {
@@ -117,6 +118,7 @@ const typesFlightsFullCsv =
     + "`incarriercode` VARCHAR(2), "
     + "`originalprice` FLOAT, "
     + "`originalcurrency` VARCHAR(5), "
+    + "`priceingbp` FLOAT, "
     + "`reservation` VARCHAR(10), "
     + "`carrier` VARCHAR(30), "
     + "`oneway` BOOLEAN, "
@@ -143,7 +145,7 @@ const columnsFlightsFullCsv =
     "id, depair, destair, indepartcode, inarrivecode, outflightno, outdepartdate, outdeparttime, "
     + "outarrivaldate, outarrivaltime, outjourneytimeseconds, outbookingclass, outflightclass, outcarriercode, inflightno, "
     + "indepartdate, indeparttime, inarrivaldate, inarrivaltime, injourneytimeseconds, inbookingclass, inflightclass, "
-    + "incarriercode, originalprice, originalcurrency, reservation, carrier, oneway";
+    + "incarriercode, originalprice, originalcurrency, priceingbp, reservation, carrier, oneway";
 
 const columnsFlightsSegmentsCsv =
     "flightid, depcode, arrcode, depdate, arrdate, deptime, arrtime, journeytimeseconds, "

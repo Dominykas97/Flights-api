@@ -27,7 +27,19 @@
 .App-link {
   color: #61dafb;
 }
-.button {
+
+.box {
+  border-color: orange;
+  /* border-width: 1px; */
+  border-style: dotted;
+  margin-bottom: 10px;
+  /* padding-block: 10px; */
+  padding-inline: 20px;
+  /* padding-top: 10px;
+  padding-bottom: 10px; */
+}
+
+/* .button {
   margin-top: 10px;
   margin-bottom: 10px;
 }
@@ -35,7 +47,8 @@
   margin-top: 100px;
 
   margin-bottom: 200px;
-}
+} */
+
 @keyframes App-logo-spin {
   from {
     transform: rotate(0deg);

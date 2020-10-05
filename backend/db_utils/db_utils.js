@@ -5,6 +5,16 @@ const db = require('../db_utils/db')
 const aviation = require('simple-aviation-api');
 const constants2 = require('./constants')
 const titleize = require('titleize');
+const { convert } = require('cashify');
+
+const rates = {
+    AED: 4.75,
+    ARS: 99.37,
+    AUD: 1.80,
+    EUR: 1.10,
+    GBP: 1.00,
+    ZAR: 21.30
+};
 
 const tableNames = {
     FULL: "flighdata_B",
@@ -33,15 +43,16 @@ function airportOffSetDifferenceHours(departureAirport, arrivalAirport) {
 
 function getAirportsByCountry(country) {
 
-    const x = aviation.getAllAirportsBy('country', titleize(country));//country.charAt(0).toUpperCase() + country.slice(1).toLowerCase());
+    const x = aviation.getAllAirportsBy('country', titleize(country));
     const airports = []
-    // console.log(x)
 
     x.forEach(function (row) {
-        if (row['iata'] !== '')
-            airports.push(row['iata'])
+        if (row.hasOwnProperty('iata')) {
+            if (row['iata'] !== '')
+                airports.push(row['iata'])
+        }
     })
-    console.log(airports)
+    // console.log(airports)
     return airports
 }
 
@@ -49,53 +60,54 @@ module.exports = {
 
     getJourneyTimes: async function (depair, destair) {
         let journeyTimes = []
-
-        // SELECT `outjourneytimeseconds` FROM `flighdata_B` WHERE `depair`="LHR" and `destair`="DXB"
-        const [rows, fields] = await db.query("SELECT `outjourneytimeseconds` FROM " + tableNames.FULL
+        const outjourneytimeseconds = "outjourneytimeseconds"
+        const [rows, fields] = await db.query("SELECT " + outjourneytimeseconds + " FROM " + tableNames.FULL
             + " WHERE `depair`= ? AND`destair`= ?", [depair, destair]);
         rows.forEach(function (row) {
-            journeyTimes.push(row['outjourneytimeseconds'])
+            journeyTimes.push(row[outjourneytimeseconds])
         })
 
-        const [rows2, fields2] = await db.query("SELECT `injourneytimeseconds` FROM " + tableNames.FULL
+        const injourneytimeseconds = "injourneytimeseconds"
+        const [rows2, fields2] = await db.query("SELECT " + injourneytimeseconds + " FROM " + tableNames.FULL
             + " WHERE `indepartcode`= ? AND`inarrivecode`= ?", [depair, destair]);
         rows2.forEach(function (row) {
-            journeyTimes.push(row['injourneytimeseconds'])
+            journeyTimes.push(row[injourneytimeseconds])
         })
 
-        const [rows3, fields3] = await db.query("SELECT `journeytimeseconds` FROM " + tableNames.SEGMENTS
+        const journeytimeseconds = "journeytimeseconds"
+        const [rows3, fields3] = await db.query("SELECT " + journeytimeseconds + " FROM " + tableNames.SEGMENTS
             + " WHERE `deptime`!=\"00:00:00\" AND `arrtime`!=\"00:00:00\" AND `depcode`= ? AND`arrcode`= ?", [depair, destair]);
         rows3.forEach(function (row) {
-            journeyTimes.push(row['journeytimeseconds'])
+            journeyTimes.push(row[journeytimeseconds])
         })
+        console.log("journeyTimes", journeyTimes)
         return journeyTimes
     },
 
     getBusinessDays: async function () {
-        let days = {}
-        // SELECT `outjourneytimeseconds` FROM `flighdata_B` WHERE `depair`="LHR" and `destair`="DXB"
-        const [rows, fields] = await db.query("SELECT `outflightclass`, COUNT(*) as count FROM " + tableNames.FULL + " GROUP BY `outflightclass`");
-        // console.log(rows)
+        let classes = {}
+
+        const outflightclass = "outflightclass"
+        const [rows, fields] = await db.query("SELECT " + outflightclass + ", COUNT(*) as count FROM " + tableNames.FULL
+            + " GROUP BY " + outflightclass);
         rows.forEach(function (row) {
-            days[row['outflightclass']] = row['count']
+            classes[row[outflightclass]] = row['count']
         })
 
-
-        const [rows2, fields2] = await db.query("SELECT `inflightclass`, COUNT(*) as count FROM " + tableNames.FULL + " WHERE `oneway`=\"0\" GROUP BY `inflightclass`");
-        // console.log(rows2)
+        const inflightclass = "inflightclass"
+        const [rows2, fields2] = await db.query("SELECT " + inflightclass + ", COUNT(*) as count FROM " + tableNames.FULL
+            + " WHERE `oneway`=\"0\" GROUP BY " + inflightclass);
         rows2.forEach(function (row) {
-            days[row['inflightclass']] += row['count']
+            classes[row[inflightclass]] += row['count']
         })
 
-        const [rows3, fields3] = await db.query("SELECT `class`, COUNT(*) as count FROM " + tableNames.SEGMENTS + " GROUP BY `class`");
-        // console.log(rows3)
+        const _class = "class"
+        const [rows3, fields3] = await db.query("SELECT " + _class + ", COUNT(*) as count FROM " + tableNames.SEGMENTS + " GROUP BY " + _class);
         rows3.forEach(function (row) {
-            days[row['class']] += row['count']
+            classes[row[_class]] += row['count']
         })
 
-        // let sum = //Object.values(days).reduce((a, b) => a + b, 0)
-
-        return { days: days, count: calculateCount(days) }
+        return { classes: classes, count: calculateCount(classes) }
     },
 
     getWeekdayPopularityByAirport: async function (depair) {
@@ -108,7 +120,7 @@ module.exports = {
             Saturday: 0,
             Sunday: 0
         }
-        // SELECT WEEKDAY(`outdepartdate`) as weekday, COUNT(*) FROM `flighdata_B` WHERE `depair`="MAN" GROUP BY weekday 
+
         const [rows, fields] = await db.query("SELECT WEEKDAY(`outdepartdate`) as weekday, COUNT(*) as count FROM " + tableNames.FULL
             + " WHERE `depair`=? GROUP BY weekday ", [depair]);
         rows.forEach(function (row) {
@@ -127,8 +139,6 @@ module.exports = {
             weekdays[weekday[row.weekday]] += row.count
         })
 
-        // let sum = 
-
         return { weekdays: weekdays, count: calculateCount(weekdays) }
     },
 
@@ -139,46 +149,73 @@ module.exports = {
         let airportsUsed = []
         if (airports.length > 0) {
             const destair = "destair"
-            // SELECT WEEKDAY(`outdepartdate`) as weekday, COUNT(*) FROM `flighdata_B` WHERE `depair`="MAN" GROUP BY weekday 
             const [rows, fields] = await db.query("SELECT " + destair + ", COUNT(*) as count FROM " + tableNames.FULL
                 + " WHERE " + destair + " IN (?) GROUP BY " + destair, [airports]);
-            // console.log(rows)
             rows.forEach(function (row) {
                 airportsUsed.push(row.destair)
                 airportInCountry[row.destair] = row.count
             })
-            const inarrivecode = "inarrivecode"
-            const [rows2, fields2] = await db.query("SELECT " + inarrivecode + ", COUNT(*) as count FROM " + tableNames.FULL
-                + " WHERE `oneway`=\"0\" AND " + inarrivecode + " IN (?) GROUP BY " + inarrivecode, [airports]);
-            // console.log(rows2)
+
+            const indepartcode = "indepartcode"
+            const [rows2, fields2] = await db.query("SELECT " + indepartcode + ", COUNT(*) as count FROM " + tableNames.FULL
+                + " WHERE `oneway`=\"0\" AND " + indepartcode + " IN (?) GROUP BY " + indepartcode, [airports]);
             rows2.forEach(function (row) {
-                if (!row.inarrivecode in airportsUsed) {
-                    airportsUsed.push(row.inarrivecode)
+                if (!airportsUsed.includes(row.indepartcode)) {
+                    airportsUsed.push(row.indepartcode)
                 }
-                if (row[inarrivecode] in airportInCountry) {
-                    airportInCountry[row[inarrivecode]] += row['count']
+                if (row[indepartcode] in airportInCountry) {
+                    airportInCountry[row[indepartcode]] += row['count']
                 } else {
-                    airportInCountry[row[inarrivecode]] = row['count']
+                    airportInCountry[row[indepartcode]] = row['count']
                 }
             })
 
-            const arrcode = "arrcode"
-            const [rows3, fields3] = await db.query("SELECT " + arrcode + ", COUNT(*) as count FROM " + tableNames.SEGMENTS
-                + " WHERE " + arrcode + " IN (?) GROUP BY " + arrcode, [airports]);
+            const depcode = "depcode"
+            const [rows3, fields3] = await db.query("SELECT " + depcode + ", COUNT(*) as count FROM " + tableNames.SEGMENTS
+                + " WHERE " + depcode + " IN (?) GROUP BY " + depcode, [airports]);
             rows3.forEach(function (row) {
-                if (!row.inarrivecode in airportsUsed) {
-                    airportsUsed.push(row.arrcode)
+                if (!airportsUsed.includes(row.depcode)) {
+                    airportsUsed.push(row.depcode)
                 }
-                if (row[arrcode] in airportInCountry) {
-                    airportInCountry[row[arrcode]] += row['count']
+                if (row[depcode] in airportInCountry) {
+                    airportInCountry[row[depcode]] += row['count']
                 } else {
-                    airportInCountry[row[arrcode]] = row['count']
+                    airportInCountry[row[depcode]] = row['count']
                 }
             })
         }
-        // let sum = //Object.values(airportInCountry).reduce((a, b) => a + b, 0)
 
         return { airports: airportsUsed, count: calculateCount(airportInCountry), data: airportInCountry }
+    },
+
+    getHighestPriceAirline: async function () {
+        let carriersPrices = {}
+        let carriers = []
+
+        const carrier = "carrier"
+        const priceingbp = "priceingbp"
+        const [rows, fields] = await db.query("SELECT " + carrier + ", " + priceingbp + " FROM " + tableNames.FULL);
+        rows.forEach(function (row) {
+            if (!carriers.includes(row.carrier)) {
+                carriers.push(row.carrier)
+            }
+            if (row[carrier] in carriersPrices) {
+                carriersPrices[row[carrier]].pricesInGBP.push(+(row[priceingbp]).toFixed(2))
+            } else {
+                carriersPrices[row[carrier]] = { pricesInGBP: [+(row[priceingbp]).toFixed(2)] }
+            }
+        })
+
+        for (let key in carriersPrices) {
+            let tempSum = 0
+            for (let priceIndex in carriersPrices[key].pricesInGBP) {
+                const price = carriersPrices[key].pricesInGBP[priceIndex]
+                tempSum += price
+            }
+            carriersPrices[key].averageInGBP = +(tempSum / carriersPrices[key].pricesInGBP.length).toFixed(2)
+        }
+
+        return { carriers: carriers, carriersPrices: carriersPrices }
     },
 
     createTableAndPopulate: function () {
@@ -235,6 +272,11 @@ function readCsvPopulateDB(csv, tableName, sqlTypesFlights, sqlColumnsFlights) {
                     else {
                         row.splice(constants2.modifiedColumnsFull.injourneytimeseconds, 0, null)
                     }
+
+                    const originalPrice = row[constants2.modifiedColumnsFull.originalprice];
+                    const originalCurrency = row[constants2.modifiedColumnsFull.originalcurrency]
+                    const priceInGBP = convert(originalPrice, { from: originalCurrency, to: 'GBP', base: 'GBP', rates });
+                    row.splice(constants2.modifiedColumnsFull.priceingbp, 0, priceInGBP)
                 }
             }
             if (tableName === tableNames.SEGMENTS) {
