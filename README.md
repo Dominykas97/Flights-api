@@ -1,4 +1,5 @@
 **How to install**
+
 At the project's root directory execute:
 `cd backend; npm install`
 
