@@ -25,7 +25,9 @@ There are 5 parts:
 
 Both full and segments csv files were uploaded to 2 MySQL tables. 4 additional columns are added for easier information retrieval: journey times (inbound, outbound and segments) and prices converted to GBP.
 
-Csv files have to placed to *flighdata_B* folder, located at the project's root. Both csv files can be processed to the database by calling http://localhost:3000/csvtosql.
+Csv files have to placed to *flighdata_B* folder, located at the project's root. Both csv files can be processed to the database by calling http://localhost:4000/csvtosql.
+
+Any csv files will not work, since types of columns for MySQL are hardcoded.
 
 **Notes**
 
